@@ -2,9 +2,9 @@ package com.ghostlock.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.ContentValues;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ContentValues;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -16,9 +16,9 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.MediaStore;
 import android.system.ErrnoException;
 import android.system.Os;
-import android.provider.MediaStore;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
@@ -334,9 +334,7 @@ public class MainActivity extends Activity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 cpuPairIndex = position;
                 int[] pair = cpuPairs.get(position);
-                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                        .putString(PREF_CPU_PAIR, position == 0 ? "auto" : pair[0] + "," + pair[1])
-                        .apply();
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(PREF_CPU_PAIR, position == 0 ? "auto" : pair[0] + "," + pair[1]).apply();
             }
 
             @Override
@@ -607,16 +605,13 @@ public class MainActivity extends Activity {
             ContentValues values = new ContentValues();
             values.put(MediaStore.Downloads.DISPLAY_NAME, "ghostlock.log");
             values.put(MediaStore.Downloads.MIME_TYPE, "text/plain");
-            values.put(MediaStore.Downloads.RELATIVE_PATH,
-                    Environment.DIRECTORY_DOWNLOADS);
-            Uri uri = getContentResolver().insert(
-                    MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+            values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+            Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
             if (uri == null) {
                 appendLog("publish log to Downloads failed: insert null");
                 return;
             }
-            try (OutputStream os = getContentResolver().openOutputStream(uri);
-                 InputStream is = new FileInputStream(logFile)) {
+            try (OutputStream os = getContentResolver().openOutputStream(uri); InputStream is = new FileInputStream(logFile)) {
                 if (os == null) {
                     appendLog("publish log to Downloads failed: no stream");
                     return;
