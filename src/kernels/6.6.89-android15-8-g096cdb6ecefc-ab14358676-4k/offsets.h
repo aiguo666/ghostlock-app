@@ -29,10 +29,3 @@ OFFSETS_ENTRY(
     .off_ashmem_release = 0x00c7f054,
     .off_ashmem_show_fdinfo = 0x00c7f0e0,
 ),
-
-/* BTF reference (STRUCT_OFFSETS_* macros carry per-kernel values): */
-/* #define STRUCT_PAGE_SIZE 0x40 */
-/* #define STRUCT_PAGE_COMPOUND_HEAD 0x8 */
-/* #define STRUCT_PAGE_TYPE 0x30 */
-/* #define STRUCT_SLAB_CACHE 0x8 */
-/* #define STRUCT_MM_STRUCT 0x500 */
