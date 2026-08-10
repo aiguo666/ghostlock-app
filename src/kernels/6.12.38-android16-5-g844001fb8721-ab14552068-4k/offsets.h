@@ -35,4 +35,4 @@ OFFSETS_ENTRY(
 /* #define STRUCT_PAGE_COMPOUND_HEAD 0x8 */
 /* #define STRUCT_PAGE_TYPE 0x30 */
 /* #define STRUCT_SLAB_CACHE 0x8 */
-/* #define STRUCT_MM_STRUCT 0x4C0 */
+/* #define STRUCT_MM_STRUCT 0x500 */

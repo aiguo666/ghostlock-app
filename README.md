@@ -6,8 +6,10 @@
 
 | Kernel                                                 | Devices                               |
 | ------------------------------------------------------ | ------------------------------------- |
+| `5.15.194-android13-8-00019-gf4321180a397-ab15212794`  | Redmi K70                             |
 | `6.6.77-android15-8-g4a507830d890-ab13636293-4k`       | Xiaomi Civi 5 Pro, Redmi K90, POCO F7 |
 | `6.6.77-android15-8-g63ce7556864c-ab13994517-4k`       | Xiaomi 15                             |
+| `6.6.77-android15-8-gf9a1d4bd8353-abogki440974771-4k`  | Xiaomi 15                             |
 | `6.6.77-android15-8-gca30f3b4bef6-abogki440974771-4k`  | Xiaomi 15 Pro                         |
 | `6.6.89-android15-8-g096cdb6ecefc-ab14358676-4k`       | OPPO Pad 4 Pro                        |
 | `6.6.118-android15-8-g2e6b9c3812c5-ab15114928-4k`      | OPPO Find N5                          |
@@ -49,6 +51,7 @@ adb shell /data/local/tmp/ghostlock
 
 - Requires Python (`pip install -r tools/requirements.txt`), and a kallsyms source (`--kallsyms` / `--kallsyms-finder`).
 - `--llvm-objdump` auto-derives `pselect_waiter_shift` and `off_slide_loggers_0_1`.
+- Qualcomm XBL configs may carry the memory map as `/memorymap/` FDT nodes or as a UEFI-style text table (`0x..., 0x..., "Kernel", AddMem`); both are parsed for the kernel physical load address.
 - MediaTek images have no `xbl_config.img` and usually no embedded BTF: the kernel physical load address is recovered from kallsyms `_text` (`_text - 0xffffffc000000000`, the DRAM base; falls back to `0x80000000` only when `_text` is missing, override with `--phys`); symbols come from kallsyms and struct offsets fall back to `target.h` defaults.
 - `--format c --out offsets.h` dumps a standalone header; `--register` stores the table under `src/kernels/<uname-release>/offsets.h` (already-registered kernels are reported as shared):
 
@@ -64,6 +67,17 @@ python tools/extract_target.py `
 `core_sys_select` copies 3 x `FDS_BYTES(nfds)` of fd_set data onto the kernel stack (qwords 0..14 for nfds=320). The futex waiter must land inside that zone: its lock field sits at waiter word + 11, so the derived shift (waiter offset in qwords) must be <= 3, or task/lock fall into the kernel-zeroed tail. The script errors out on infeasible layouts.
 
 PGO/LTO layouts differ across SoC branches even for the same kernel version: Xiaomi 15 (`6.6.77`, non-inlined `do_pselect`) puts the waiter at qword 12 (infeasible), while Xiaomi 15 Pro (same `6.6.77`, inlined) works with `pselect_waiter_shift=-2`.
+
+### mcast route (setsockopt stack copy)
+
+When the pselect layout is infeasible, `extract_target.py` derives the IPv6 mcast route: the `do_ipv6_setsockopt` handler of `setsockopt(AF_INET6, IPPROTO_IPV6, 46, optval, 264)` copies all 264 bytes onto the kernel stack. If that copy can fully cover the futex waiter, the fake waiter is placed at `optval[mcast_payload_off]` and the runtime takes `do_mcast_fake_lock_route()` (reusing the consumer/CFI stages of the pselect route). Verified so far:
+
+- Redmi K70 (`5.15.194`): waiter at copy `+0xa8`; pselect negative overlap infeasible.
+- Xiaomi 15 (`6.6.77-gf9a1d4bd8353`): waiter at copy `+0x90`; pselect shift=12 infeasible.
+
+Both kernels land optname 46 in switch case 45 (the 264-byte copy block).
+
+Note: the mcast route needs an IPv6 socket, so the app declares `android.permission.INTERNET`; without it, HyperOS returns `EPERM` at `socket()` (measured errno=1). The runtime walks a flavor list of socket calls and logs each errno for diagnosis.
 
 ## Credits & License
 
